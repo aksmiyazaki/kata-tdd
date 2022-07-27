@@ -17,7 +17,7 @@ class TestStringCalculator extends AnyFlatSpec with Matchers {
   }
 
   it should "return the correct summation for a n-digit list" in {
-    stringCalculator.Add("5,5 , 5, 5, 5 , 5") shouldEqual 30
+    stringCalculator.Add("5,5,5,5,5,5") shouldEqual 30
   }
 
   it should "return the correct summation for a list delimited by new line" in {
@@ -43,8 +43,13 @@ class TestStringCalculator extends AnyFlatSpec with Matchers {
   }
 
   it should "raise an exception with the position of the error character" in {
-    assertThrows[StringCalculator.UnexpectedDelimiter] {
+    try {
       stringCalculator.Add("//|\n1|2,3")
+      fail
+    } catch {
+      case e: StringCalculator.UnexpectedDelimiter =>
+        e.getMessage shouldEqual "'|' expected but ',' found at position 3"
     }
+
   }
 }

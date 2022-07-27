@@ -1,3 +1,5 @@
+import scala.annotation.tailrec
+
 class StringCalculator() {
   def Add(str: String): Int = {
     if (str.isEmpty) 0
@@ -8,6 +10,8 @@ class StringCalculator() {
       if (stringEndsWithDelimiter(delimiters, strToProcess))
         throw StringCalculator.DelimiterAtEndOfInput()
       else {
+        val listOfDigits = getOnlyDigits(delimiters, strToProcess)
+
         processAddString(delimiters, strToProcess)
       }
     }
@@ -29,10 +33,6 @@ class StringCalculator() {
       } else el)
   }
 
-  private def isCustomDelimitedString(str: String): Boolean = {
-    str.startsWith("//")
-  }
-
   private def getStringToBeProcessed(str: String): String = {
     if (isCustomDelimitedString(str)) {
       str.substring(str.indexOf("\n") + 1)
@@ -41,19 +41,31 @@ class StringCalculator() {
     }
   }
 
+  private def isCustomDelimitedString(str: String): Boolean = {
+    str.startsWith("//")
+  }
+
   private def stringEndsWithDelimiter(delimiters: List[String], strToProcess: String): Boolean = {
     delimiters contains strToProcess.substring(strToProcess.length - 1)
   }
 
-  private def processAddString(delimiters: List[String], strToProcess: String): Int = {
-    val digits: Seq[Int] = strToProcess.split(delimiters.mkString("|")).map(_.trim.toInt)
-    digits.sum
+  private def getDelimitersFromString(delimiters: List[String], strToProcess: String): List[Int] = {
+    @tailrec
+    def getDelimiters(strToProcess: String, curIdx: Int, curDelim:String, gotDelims: List[String]): List[String] = {
+      val pass = curDelim
+      if(!strToProcess.charAt(curIdx).isDigit) {
+      }
+    }
   }
+
+  //  private def processAddString(delimiters: List[String], strToProcess: String): Int = {
+  //    val listOfDigits: List[Int] = getDigitsFromString()
+  //    val listOfDelimiters: List[String] = getListOf
+  //  }
 }
 
 object StringCalculator {
   case class DelimiterAtEndOfInput() extends Exception
-  case class UnexpectedDelimiter() extends Exception
 
   def apply(): StringCalculator = {
     new StringCalculator()
