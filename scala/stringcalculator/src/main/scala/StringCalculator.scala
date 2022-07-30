@@ -88,7 +88,7 @@ class StringCalculator() {
     }
 
     val negativeNumbers = fetchNegatives(stringToProcess, "", Seq.empty)
-    if (negativeNumbers.length > 0)
+    if (negativeNumbers.nonEmpty)
       throw StringCalculator.NegativeNumbersNotAllowed(s"Negative number(s) " +
         s"not allowed: ${negativeNumbers.mkString(", ")}")
   }
