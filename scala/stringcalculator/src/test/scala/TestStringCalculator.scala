@@ -48,8 +48,31 @@ class TestStringCalculator extends AnyFlatSpec with Matchers {
       fail
     } catch {
       case e: StringCalculator.UnexpectedDelimiter =>
-        e.getMessage shouldEqual "'|' expected but ',' found at position 3"
+        e.getMessage shouldEqual "| expected but , found at position 3"
     }
+  }
 
+  it should "raise an exception when negative numbers are on string" in {
+    try {
+      stringCalculator.Add("2,-4,-9")
+      fail
+    } catch {
+      case e: StringCalculator.NegativeNumbersNotAllowed =>
+        e.getMessage shouldEqual "Negative number(s) not allowed: -4, -9"
+    }
+  }
+
+  it should "ignore number bigger than 1000" in {
+      stringCalculator.Add("2,1001") shouldEqual 2
+  }
+
+  it should "correct parse when `-` is the separator" in {
+    try {
+      stringCalculator.Add("//-\n1--4--9")
+      fail
+    } catch {
+      case e: StringCalculator.NegativeNumbersNotAllowed =>
+        e.getMessage shouldEqual "Negative number(s) not allowed: -4, -9"
+    }
   }
 }
