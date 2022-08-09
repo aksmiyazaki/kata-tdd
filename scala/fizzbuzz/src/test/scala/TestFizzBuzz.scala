@@ -6,19 +6,19 @@ class TestFizzBuzz extends AnyFlatSpec with Matchers with BeforeAndAfter {
   lazy val fizzBuzzHandler = FizzBuzz()
 
 
-  it should "return the number in string format" in {
+  "When the number is not a multiple of 3 or 5" should "return the number in string format" in {
     fizzBuzzHandler.fizzbuzz(1) shouldEqual "1"
   }
 
-  it should "return Fizz if the number is a multiple of three" in {
+  "When the number is multiple of three" should "return Fizz" in {
     fizzBuzzHandler.fizzbuzz(3) shouldEqual "Fizz"
   }
 
-  it should "return Buzz if the number is a multiple of Five" in {
+  "When the number is a multiple of five" should "return Buzz" in {
     fizzBuzzHandler.fizzbuzz(5) shouldEqual "Buzz"
   }
 
-  it should "return FizzBuzz if the number is a multiple of both Three and Five" in {
+  "When the number is a multiple of both three and Five" should "return FizzBuzz" in {
     fizzBuzzHandler.fizzbuzz(15) shouldEqual "FizzBuzz"
   }
 }
