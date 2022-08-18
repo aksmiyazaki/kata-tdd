@@ -1,8 +1,7 @@
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfter
 
-class TestFizzBuzz extends AnyFlatSpec with Matchers with BeforeAndAfter {
+class TestFizzBuzz extends AnyFlatSpec with Matchers {
   lazy val fizzBuzzHandler = FizzBuzz()
 
 
