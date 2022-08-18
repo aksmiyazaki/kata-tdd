@@ -2,7 +2,7 @@ package main
 
 import "strconv"
 
-func fizzBuzz(input int) (res string) {
+func fizzBuzz(input int) string {
 	output := ""
 
 	if input%3 == 0 {
