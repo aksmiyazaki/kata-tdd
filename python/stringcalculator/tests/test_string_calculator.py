@@ -25,7 +25,23 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(31, self.calc.add("1,10\n20"))
 
     def test_should_fail_when_theres_consecutive_separators(self):
-        self.assertRaises(StringCalculator.MalformedString, self.calc.add("1,\n20"))
+        with self.assertRaises(StringCalculator.MalformedString):
+            self.calc.add("1,\n20")
+
+    def test_should_fail_when_theres_separator_in_the_end(self):
+        with self.assertRaises(StringCalculator.MalformedString):
+            self.calc.add("1,20,")
+
+    def test_should_add_numbers_when_using_custom_delimiters(self):
+        self.assertEqual(4, self.calc.add("//sep\n1sep3"))
+
+    def test_should_fail_when_invalid_custom_delimiter_is_used(self):
+        try:
+            self.calc.add("//|\n1|3,4")
+            self.fail("Should've thrown an exception.")
+        except StringCalculator.MalformedString as err:
+            self.assertEqual(str(err), "'|' expected but ',' found at position 3")
+
 
 if __name__ == '__main__':
     unittest.main()
