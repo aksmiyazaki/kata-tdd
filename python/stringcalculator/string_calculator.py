@@ -11,16 +11,18 @@ class StringCalculator:
     STANDARD_SEPARATORS = [',', "\n"]
     SANITIZED_SEPARATOR = '\0'
 
-    class MalformedString(Exception):
+    class StringCalculatorErrors(Exception):
         def __init__(self, message=""):
             super().__init__(message)
 
     def __init__(self):
-        self.__separator = StringCalculator.SANITIZED_SEPARATOR
         self.__input = ""
         self.__standardized_input = ""
         self.__custom_separator = None
         self.__is_custom_separated = False
+        self.__current_extraction_state = StringCalculatorState.EXPECTING_DIGIT
+        self.__errors = []
+        self.__extracted_digits = []
 
     def add(self, numbers):
         self.__set_state(numbers)
@@ -29,8 +31,10 @@ class StringCalculator:
             return 0
         else:
             self.__standardized_input = self.__standardize_input()
-            contained_numbers = self.__segment_input()
-            return sum(contained_numbers)
+            self.__extract_contained_numbers()
+            self.__validate_process()
+            self.__check_occurred_errors()
+            return sum(self.__extracted_digits)
 
     def __set_state(self, numbers):
         self.__input = numbers
@@ -42,7 +46,7 @@ class StringCalculator:
     def __is_custom_separated_input(self):
         return self.__input.startswith("//")
 
-    def __extract_custom_separators(self, numbers):
+    def __extract_custom_separator(self, numbers):
         separator_end = numbers.index("\n")
         return numbers[2:separator_end]
 
@@ -53,40 +57,6 @@ class StringCalculator:
     def __is_empty_input(self):
         return self.__input == ""
 
-    def __segment_input(self):
-        current_state = StringCalculatorState.EXPECTING_DIGIT
-        current_digit_as_str = ""
-        digits_as_list = []
-        if self.__standardized_input[-1] == self.SANITIZED_SEPARATOR:
-            raise StringCalculator.MalformedString
-
-        for idx, element in enumerate(self.__standardized_input):
-            if self.__element_is_digit_when_it_is_expected(current_state, element):
-                current_digit_as_str += element
-                current_state = StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR
-            elif self.__element_is_separator_when_it_is_expected(current_state, element):
-                digits_as_list.append(int(current_digit_as_str))
-                current_digit_as_str = ""
-                current_state = current_state.EXPECTING_DIGIT
-            else:
-                msg = ""
-                if (current_state == StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR or
-                    current_state == StringCalculatorState.EXPECTING_SEPARATOR):
-                    msg = f"'{self.__custom_separator}' expected but '{element}' found at position {idx}"
-                raise StringCalculator.MalformedString(msg)
-
-        if current_digit_as_str != "":
-            digits_as_list.append(int(current_digit_as_str))
-
-        return digits_as_list
-
-    def __element_is_digit_when_it_is_expected(self, current_state, element):
-        return element.isdigit() and current_state in [StringCalculatorState.EXPECTING_DIGIT,
-                                                       StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR]
-
-    def __element_is_separator_when_it_is_expected(self, current_state, element):
-        return element == self.SANITIZED_SEPARATOR and current_state == StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR
-
     def __standardize_input(self):
         if self.__is_custom_separated:
             return self.__input.replace(self.__custom_separator, StringCalculator.SANITIZED_SEPARATOR)
@@ -95,10 +65,62 @@ class StringCalculator:
                     .replace(self.STANDARD_SEPARATORS[0], StringCalculator.SANITIZED_SEPARATOR)
                     .replace(self.STANDARD_SEPARATORS[1], StringCalculator.SANITIZED_SEPARATOR))
 
-    def __extract_custom_separator(self, numbers):
-        separator_end = numbers.index("\n")
-        return numbers[2:separator_end]
+    def __extract_contained_numbers(self):
+        current_digit_as_str = ""
 
-    def __extract_content_with_custom_separator(self, numbers):
-        start_of_content = numbers.index("\n") + 1
-        return numbers[start_of_content:]
+        for idx, element in enumerate(self.__standardized_input):
+            if self.__element_is_digit_when_it_is_expected(element):
+                current_digit_as_str = self.__process_digit(current_digit_as_str, element)
+            elif self.__element_is_separator_when_it_is_expected(element):
+                current_digit_as_str = self.__process_separator(current_digit_as_str)
+            else:
+                current_digit_as_str = self.__treat_error_on_extraction(element, idx)
+
+        if current_digit_as_str != "":
+            self.__extracted_digits.append(int(current_digit_as_str))
+
+    def __element_is_digit_when_it_is_expected(self, element):
+        return ((element == "-" or element.isdigit()) and
+                (self.__current_extraction_state in
+                 [StringCalculatorState.EXPECTING_DIGIT, StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR]))
+
+    def __process_digit(self, current_digit_as_str, element):
+        self.__current_extraction_state = StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR
+        return current_digit_as_str + element
+
+    def __element_is_separator_when_it_is_expected(self, element):
+        return (element == self.SANITIZED_SEPARATOR and
+                self.__current_extraction_state == StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR)
+
+    def __process_separator(self, current_digit_as_str):
+        self.__extracted_digits.append(int(current_digit_as_str))
+        self.__current_extraction_state = StringCalculatorState.EXPECTING_DIGIT
+        return ""
+
+    def __treat_error_on_extraction(self, element, extract_idx):
+        msg = ""
+        if (self.__current_extraction_state == StringCalculatorState.EXPECTING_DIGIT_OR_SEPARATOR or
+                self.__current_extraction_state == StringCalculatorState.EXPECTING_SEPARATOR):
+            msg = f"'{self.__custom_separator}' expected but '{element}' found at position {extract_idx}"
+        elif element == self.SANITIZED_SEPARATOR:
+            msg = f"Cannot have two separators in sequence"
+        self.__errors.append(msg)
+        return ""
+
+    def __validate_process(self):
+        self.__filter_out_thousands()
+        self.__check_trailing_separator()
+        negatives = [str(x) for x in self.__extracted_digits if x < 0]
+        if len(negatives) > 0:
+            self.__errors.append(f"Negative number(s) not allowed: {','.join(negatives)}")
+
+    def __filter_out_thousands(self):
+        self.__extracted_digits = [x for x in self.__extracted_digits if x <= 1000]
+
+    def __check_trailing_separator(self):
+        if self.__standardized_input[-1] == self.SANITIZED_SEPARATOR:
+            self.__errors.append("Input String terminated with Separator")
+
+    def __check_occurred_errors(self):
+        if len(self.__errors) > 0:
+            raise self.StringCalculatorErrors("\n".join(self.__errors))
