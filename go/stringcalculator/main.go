@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -9,7 +10,6 @@ import (
 
 type StringCalculatorState int64
 
-const STANDARDIZED_SEPARATOR string = ","
 const NEWLINE string = "\n"
 
 const (
@@ -19,10 +19,11 @@ const (
 )
 
 type StringCalculator struct {
-	Input                  string
-	standardizedInput      string
-	extractedDigits        []int
-	currentExtractionState StringCalculatorState
+	Input                    string
+	standardizedInput        string
+	extractedDigits          []int
+	currentStandardSeparator string
+	originalSeparators       []string
 }
 
 func (sc *StringCalculator) Add(numbers string) (int, error) {
@@ -31,10 +32,14 @@ func (sc *StringCalculator) Add(numbers string) (int, error) {
 	} else {
 		error_msg := ""
 		sc.Input = numbers
-		sc.currentExtractionState = EXPECTING_DIGIT
-		sc.standardizeInput()
+		if err := sc.standardizeInput(); err != nil {
+			return -1, err
+		}
+
 		error_msg += sc.validateEndOfInput()
-		sc.extractDigits()
+		if err := sc.extractDigits(); err != nil {
+			return -1, err
+		}
 
 		if len(error_msg) > 0 {
 			return -1, errors.New(error_msg)
@@ -43,14 +48,34 @@ func (sc *StringCalculator) Add(numbers string) (int, error) {
 	}
 }
 
-func (sc *StringCalculator) standardizeInput() {
-	if strings.HasPrefix(sc.Input, "//") {
-		sep := sc.extractCustomSeparator()
-		indexOfStringStart := strings.Index(sc.Input, "\n")
-		sc.standardizedInput = strings.Replace(sc.Input[indexOfStringStart:], sep, STANDARDIZED_SEPARATOR, -1)
+func (sc *StringCalculator) standardizeInput() error {
+	var err error
+	err = nil
+
+	if sc.isCustomSeparatedInput() {
+		err = sc.standardizeCustomSeparatedInput()
 	} else {
-		sc.standardizedInput = strings.Replace(sc.Input, "\n", STANDARDIZED_SEPARATOR, -1)
+		sc.standardizeDefaultSeparatedInput()
 	}
+
+	return err
+}
+
+func (sc StringCalculator) isCustomSeparatedInput() bool {
+	return strings.HasPrefix(sc.Input, "//")
+}
+
+func (sc *StringCalculator) standardizeCustomSeparatedInput() error {
+	sep := sc.extractCustomSeparator()
+	indexOfStringStart := strings.Index(sc.Input, "\n") + 1
+	if standardSeparator, err := sc.checkStringForStandardSeparators(sc.Input[indexOfStringStart:]); err != nil {
+		return err
+	} else {
+		sc.originalSeparators = append(sc.originalSeparators, sep)
+		sc.currentStandardSeparator = standardSeparator
+		sc.standardizedInput = strings.Replace(sc.Input[indexOfStringStart:], sep, sc.currentStandardSeparator, -1)
+	}
+	return nil
 }
 
 func (sc StringCalculator) extractCustomSeparator() string {
@@ -65,29 +90,51 @@ func (sc StringCalculator) extractCustomSeparator() string {
 	return sep
 }
 
-func (sc StringCalculator) replaceSeparatorOnInput(sep string, indexOfStringStart int) {
+func (sc StringCalculator) checkStringForStandardSeparators(customizedInput string) (string, error) {
+	options := sc.getStandardOperatorOptions()
+	for _, element := range options {
+		if !strings.Contains(customizedInput, element) {
+			return element, nil
+		}
+	}
+	return "", errors.New("cannot use a standardized operator")
+}
 
+func (sc StringCalculator) getStandardOperatorOptions() []string {
+	return []string{",", "\n"}
+}
+
+func (sc *StringCalculator) standardizeDefaultSeparatedInput() {
+	sc.originalSeparators = sc.getStandardOperatorOptions()
+	sc.currentStandardSeparator = sc.getStandardOperatorOptions()[0]
+	sc.standardizedInput = strings.Replace(sc.Input, "\n", sc.currentStandardSeparator, -1)
 }
 
 func (sc StringCalculator) validateEndOfInput() string {
-	if string(sc.Input[len(sc.Input)-1]) == STANDARDIZED_SEPARATOR {
+	if string(sc.Input[len(sc.Input)-1]) == sc.currentStandardSeparator {
 		return "Cannot have a separator at the end of the input"
 	}
 	return ""
 }
 
-func (sc *StringCalculator) extractDigits() {
+func (sc *StringCalculator) extractDigits() error {
 	current_digit := ""
-	for _, element := range sc.standardizedInput {
-		if unicode.IsDigit(element) && (sc.currentExtractionState == EXPECTING_DIGIT || sc.currentExtractionState == EXPECTING_DIGIT_OR_SEPARATOR) {
-			current_digit += string(element)
-			sc.currentExtractionState = EXPECTING_DIGIT_OR_SEPARATOR
-		} else if string(element) == STANDARDIZED_SEPARATOR {
+	currentExtractionState := EXPECTING_DIGIT
+
+	for idx, element := range sc.standardizedInput {
+		elementAsString := string(element)
+		if unicode.IsDigit(element) && (currentExtractionState == EXPECTING_DIGIT || currentExtractionState == EXPECTING_DIGIT_OR_SEPARATOR) {
+			current_digit += elementAsString
+			currentExtractionState = EXPECTING_DIGIT_OR_SEPARATOR
+		} else if elementAsString == sc.currentStandardSeparator {
 			if res, err := strconv.Atoi(current_digit); err == nil {
 				current_digit = ""
 				sc.extractedDigits = append(sc.extractedDigits, res)
-				sc.currentExtractionState = EXPECTING_DIGIT
+				currentExtractionState = EXPECTING_DIGIT
 			}
+		} else {
+			expectedSeparators := strings.Join(sc.originalSeparators, "','")
+			return fmt.Errorf("'%s' expected but '%s' found at position %d", expectedSeparators, elementAsString, idx)
 		}
 	}
 
@@ -96,6 +143,7 @@ func (sc *StringCalculator) extractDigits() {
 			sc.extractedDigits = append(sc.extractedDigits, res)
 		}
 	}
+	return nil
 }
 
 func (sc StringCalculator) sumDigits() int {
