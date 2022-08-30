@@ -52,6 +52,18 @@ func TestAdd(t *testing.T) {
 			expectedOutput: 4,
 			expectedError:  nil,
 		},
+		{
+			description:    "ShouldSumElementsWhenCustomDelimitedWithMultipleDigitSeparator",
+			input:          "//sep\n2sep3sep4",
+			expectedOutput: 9,
+			expectedError:  nil,
+		},
+		{
+			description:    "ShouldRaiseErrorWhenUsingInvalidSeparator",
+			input:          "//|\n1|2,3",
+			expectedOutput: -1,
+			expectedError:  errors.New("'|' expected but ',' found at position 3"),
+		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			s := StringCalculator{}

@@ -65,6 +65,10 @@ func (sc StringCalculator) extractCustomSeparator() string {
 	return sep
 }
 
+func (sc StringCalculator) replaceSeparatorOnInput(sep string, indexOfStringStart int) {
+
+}
+
 func (sc StringCalculator) validateEndOfInput() string {
 	if string(sc.Input[len(sc.Input)-1]) == STANDARDIZED_SEPARATOR {
 		return "Cannot have a separator at the end of the input"
