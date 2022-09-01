@@ -30,19 +30,27 @@ func (sc *StringCalculator) Add(numbers string) (int, error) {
 	if len(numbers) == 0 {
 		return 0, nil
 	} else {
-		error_msg := ""
+		accumulatedErrorMessages := make([]string, 0, 2)
+
 		sc.Input = numbers
 		if err := sc.standardizeInput(); err != nil {
 			return -1, err
 		}
 
-		error_msg += sc.validateEndOfInput()
-		if err := sc.extractDigits(); err != nil {
-			return -1, err
+		if errMsg := sc.validateEndOfInput(); len(errMsg) > 0 {
+			accumulatedErrorMessages = append(accumulatedErrorMessages, errMsg)
 		}
 
-		if len(error_msg) > 0 {
-			return -1, errors.New(error_msg)
+		if errMsgs := sc.extractDigits(); len(errMsgs) > 0 {
+			accumulatedErrorMessages = append(accumulatedErrorMessages, errMsgs...)
+		}
+
+		if errMsg := sc.checkForNegatives(); len(errMsg) > 0 {
+			accumulatedErrorMessages = append(accumulatedErrorMessages, errMsg)
+		}
+
+		if len(accumulatedErrorMessages) > 0 {
+			return -1, sc.buildSingleError(accumulatedErrorMessages)
 		}
 		return sc.sumDigits(), nil
 	}
@@ -117,16 +125,17 @@ func (sc StringCalculator) validateEndOfInput() string {
 	return ""
 }
 
-func (sc *StringCalculator) extractDigits() error {
+func (sc *StringCalculator) extractDigits() []string {
 	current_digit := ""
 	currentExtractionState := EXPECTING_DIGIT
+	foundErrors := make([]string, 0, 2)
 
 	for idx, element := range sc.standardizedInput {
 		elementAsString := string(element)
-		if unicode.IsDigit(element) && (currentExtractionState == EXPECTING_DIGIT || currentExtractionState == EXPECTING_DIGIT_OR_SEPARATOR) {
+		if sc.isDigitWhenDigitIsExpected(element, currentExtractionState) {
 			current_digit += elementAsString
 			currentExtractionState = EXPECTING_DIGIT_OR_SEPARATOR
-		} else if elementAsString == sc.currentStandardSeparator {
+		} else if sc.isSeparatorWhenSeparatorIsExpected(elementAsString) {
 			if res, err := strconv.Atoi(current_digit); err == nil {
 				current_digit = ""
 				sc.extractedDigits = append(sc.extractedDigits, res)
@@ -134,7 +143,13 @@ func (sc *StringCalculator) extractDigits() error {
 			}
 		} else {
 			expectedSeparators := strings.Join(sc.originalSeparators, "','")
-			return fmt.Errorf("'%s' expected but '%s' found at position %d", expectedSeparators, elementAsString, idx)
+			foundErrors = append(foundErrors,
+				fmt.Sprintf("'%s' expected but '%s' found at position %d", expectedSeparators, elementAsString, idx))
+			if res, err := strconv.Atoi(current_digit); err == nil {
+				current_digit = ""
+				sc.extractedDigits = append(sc.extractedDigits, res)
+				currentExtractionState = EXPECTING_DIGIT
+			}
 		}
 	}
 
@@ -143,13 +158,42 @@ func (sc *StringCalculator) extractDigits() error {
 			sc.extractedDigits = append(sc.extractedDigits, res)
 		}
 	}
-	return nil
+	return foundErrors
+}
+
+func (sc StringCalculator) isDigitWhenDigitIsExpected(element rune, extractionState StringCalculatorState) bool {
+	return (string(element) == "-" || unicode.IsDigit(element)) && (extractionState == EXPECTING_DIGIT || extractionState == EXPECTING_DIGIT_OR_SEPARATOR)
+}
+
+func (sc StringCalculator) isSeparatorWhenSeparatorIsExpected(element string) bool {
+	return element == sc.currentStandardSeparator
+}
+
+func (sc StringCalculator) checkForNegatives() string {
+	var negatives []string
+
+	for _, value := range sc.extractedDigits {
+		if value < 0 {
+			negatives = append(negatives, strconv.Itoa(value))
+		}
+	}
+
+	if len(negatives) > 0 {
+		return fmt.Sprintf("negative number(s) not allowed: %s", strings.Join(negatives, ","))
+	}
+	return ""
+}
+
+func (sc StringCalculator) buildSingleError(msgArray []string) error {
+	return fmt.Errorf("%s", strings.Join(msgArray, "\n"))
 }
 
 func (sc StringCalculator) sumDigits() int {
 	result := 0
 	for _, v := range sc.extractedDigits {
-		result += v
+		if v <= 1000 {
+			result += v
+		}
 	}
 	return result
 }

@@ -64,6 +64,30 @@ func TestAdd(t *testing.T) {
 			expectedOutput: -1,
 			expectedError:  errors.New("'|' expected but ',' found at position 3"),
 		},
+		{
+			description:    "ShouldRaiseErrorWhenTheresNegatives",
+			input:          "1,-2",
+			expectedOutput: -1,
+			expectedError:  errors.New("negative number(s) not allowed: -2"),
+		},
+		{
+			description:    "ShouldRaiseErrorWithAllNegativesWhenTheresMultipleNegatives",
+			input:          "//|\n1|-2|-3",
+			expectedOutput: -1,
+			expectedError:  errors.New("negative number(s) not allowed: -2,-3"),
+		},
+		{
+			description:    "ShouldRaiseMultipleErrorsWhenTheresMultipleErrors",
+			input:          "//|\n1|2,-3",
+			expectedOutput: -1,
+			expectedError:  errors.New("'|' expected but ',' found at position 3\nnegative number(s) not allowed: -3"),
+		},
+		{
+			description:    "ShouldIgnoreNumberWhenItIsBiggerThan1000",
+			input:          "2,1000,1001",
+			expectedOutput: 1002,
+			expectedError:  nil,
+		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
 			s := StringCalculator{}
