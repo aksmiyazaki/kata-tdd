@@ -18,21 +18,33 @@ func TestValidatePassword(t *testing.T) {
 	for _, testCase := range []testCase{
 		{
 			description:    "ShouldFailWhenPasswordIsSmallerThan8Chars",
-			input:          "1234567",
+			input:          "A23456;",
 			expectedError:  errors.New("password must be at least 8 characters"),
 			expectedOutput: false,
 		},
 		{
 			description:    "ShouldFailWhenThereIsLessThan2Numbers",
-			input:          "1abcdefgh",
+			input:          "1Abcdefg'",
 			expectedError:  errors.New("the password must contain at least 2 numbers"),
 			expectedOutput: false,
 		},
 		{
 			description:    "ShouldReturnMultipleErrorsInASingleValidation",
-			input:          "somepas",
+			input:          "Somepa+",
 			expectedError:  errors.New("password must be at least 8 characters\nthe password must contain at least 2 numbers"),
 			expectedOutput: false,
+		},
+		{
+			description:    "ShouldFailWhenThereIsntACapitalLetter",
+			input:          "12somepas[",
+			expectedError:  errors.New("password must contain at least one capital letter"),
+			expectedOutput: false,
+		},
+		{
+			description:    "ShouldValidateWhenPasswordMatchesAllConstraints",
+			input:          "12somepaS[",
+			expectedError:  nil,
+			expectedOutput: true,
 		},
 	} {
 		t.Run(testCase.description, func(t *testing.T) {
