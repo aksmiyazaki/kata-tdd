@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +8,7 @@ import (
 )
 
 type StringCalculatorState int64
+type step func() string
 
 const NEWLINE string = "\n"
 
@@ -33,21 +33,12 @@ func (sc *StringCalculator) Add(numbers string) (int, error) {
 		accumulatedErrorMessages := make([]string, 0, 2)
 
 		sc.Input = numbers
-		if err := sc.standardizeInput(); err != nil {
-			return -1, err
-		}
-
-		if errMsg := sc.validateEndOfInput(); len(errMsg) > 0 {
-			accumulatedErrorMessages = append(accumulatedErrorMessages, errMsg)
-		}
-
+		accumulatedErrorMessages = sc.evaluateStep(sc.standardizeInput, accumulatedErrorMessages)
+		accumulatedErrorMessages = sc.evaluateStep(sc.validateEndOfInput, accumulatedErrorMessages)
 		if errMsgs := sc.extractDigits(); len(errMsgs) > 0 {
 			accumulatedErrorMessages = append(accumulatedErrorMessages, errMsgs...)
 		}
-
-		if errMsg := sc.checkForNegatives(); len(errMsg) > 0 {
-			accumulatedErrorMessages = append(accumulatedErrorMessages, errMsg)
-		}
+		accumulatedErrorMessages = sc.evaluateStep(sc.checkForNegatives, accumulatedErrorMessages)
 
 		if len(accumulatedErrorMessages) > 0 {
 			return -1, sc.buildSingleError(accumulatedErrorMessages)
@@ -56,9 +47,15 @@ func (sc *StringCalculator) Add(numbers string) (int, error) {
 	}
 }
 
-func (sc *StringCalculator) standardizeInput() error {
-	var err error
-	err = nil
+func (sc StringCalculator) evaluateStep(calculatorStep step, errList []string) []string {
+	if errMsg := calculatorStep(); len(errMsg) > 0 {
+		return append(errList, errMsg)
+	}
+	return errList
+}
+
+func (sc *StringCalculator) standardizeInput() string {
+	err := ""
 
 	if sc.isCustomSeparatedInput() {
 		err = sc.standardizeCustomSeparatedInput()
@@ -73,17 +70,17 @@ func (sc StringCalculator) isCustomSeparatedInput() bool {
 	return strings.HasPrefix(sc.Input, "//")
 }
 
-func (sc *StringCalculator) standardizeCustomSeparatedInput() error {
+func (sc *StringCalculator) standardizeCustomSeparatedInput() string {
 	sep := sc.extractCustomSeparator()
 	indexOfStringStart := strings.Index(sc.Input, "\n") + 1
-	if standardSeparator, err := sc.checkStringForStandardSeparators(sc.Input[indexOfStringStart:]); err != nil {
-		return err
+	if standardSeparator, errMsg := sc.checkStringForStandardSeparators(sc.Input[indexOfStringStart:]); len(errMsg) > 0 {
+		return errMsg
 	} else {
 		sc.originalSeparators = append(sc.originalSeparators, sep)
 		sc.currentStandardSeparator = standardSeparator
 		sc.standardizedInput = strings.Replace(sc.Input[indexOfStringStart:], sep, sc.currentStandardSeparator, -1)
 	}
-	return nil
+	return ""
 }
 
 func (sc StringCalculator) extractCustomSeparator() string {
@@ -98,14 +95,14 @@ func (sc StringCalculator) extractCustomSeparator() string {
 	return sep
 }
 
-func (sc StringCalculator) checkStringForStandardSeparators(customizedInput string) (string, error) {
+func (sc StringCalculator) checkStringForStandardSeparators(customizedInput string) (string, string) {
 	options := sc.getStandardOperatorOptions()
 	for _, element := range options {
 		if !strings.Contains(customizedInput, element) {
-			return element, nil
+			return element, ""
 		}
 	}
-	return "", errors.New("cannot use a standardized operator")
+	return "", "cannot use a standardized operator"
 }
 
 func (sc StringCalculator) getStandardOperatorOptions() []string {
