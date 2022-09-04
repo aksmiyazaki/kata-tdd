@@ -13,6 +13,9 @@ class SearchEngine:
         if self.__is_input_too_small(string_to_search):
             return None
 
+        return self.case_insensitive_match_input_with_data_base(string_to_search)
+
+    def case_insensitive_match_input_with_data_base(self, string_to_search):
         case_insensitive_search = string_to_search.upper()
         return [value
                 for key, value
